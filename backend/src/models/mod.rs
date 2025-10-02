@@ -58,10 +58,12 @@ pub struct Song {
 }
 
 impl Song {
+    #[allow(dead_code)]
     pub fn get_language(&self) -> Language {
         Language::from_str(&self.language).unwrap_or(Language::English)
     }
 
+    #[allow(dead_code)]
     pub fn set_language(&mut self, language: Language) {
         self.language = language.to_string();
     }
@@ -283,6 +285,7 @@ pub struct ErrorResponse {
 }
 
 impl ErrorResponse {
+    #[allow(dead_code)]
     pub fn new(error: String) -> Self {
         Self {
             success: false,
@@ -292,6 +295,7 @@ impl ErrorResponse {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_code(error: String, code: String) -> Self {
         Self {
             success: false,
@@ -322,6 +326,7 @@ pub struct ApiResponse<T> {
 }
 
 impl<T> ApiResponse<T> {
+    #[allow(dead_code)]
     pub fn success(data: T) -> Self {
         Self {
             success: true,
@@ -331,6 +336,7 @@ impl<T> ApiResponse<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn error(error: String) -> Self {
         Self {
             success: false,
@@ -340,6 +346,7 @@ impl<T> ApiResponse<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_message(data: T, message: String) -> Self {
         Self {
             success: true,
