@@ -26,3 +26,6 @@ reqwest = { version = "0.11", features = ["json"] }
 # Configuration and validation
 config = "0.14"
 validator = { version = "0.18", features = ["derive"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }

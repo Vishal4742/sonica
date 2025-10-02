@@ -5,6 +5,8 @@ use std::env;
 use std::io::Write;
 use futures_util::TryStreamExt;
 
+mod models;
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Load environment variables
