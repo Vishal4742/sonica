@@ -1,24 +1,29 @@
 use actix_web::{web, App, HttpServer, Result, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use actix_multipart::Multipart;
-use std::env;
 use std::io::Write;
 use futures_util::TryStreamExt;
 
 mod models;
+mod utils;
+
+use utils::load_config;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Load environment variables
-    dotenvy::dotenv().ok();
-    
     // Initialize logger
     env_logger::init();
 
-    let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
-    let bind_address = format!("{}:{}", host, port);
+    // Load configuration
+    let config = match load_config() {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("Failed to load configuration: {}", e);
+            std::process::exit(1);
+        }
+    };
 
+    let bind_address = format!("{}:{}", config.host, config.port);
     log::info!("Starting SONICA Audio Recognition Server on {}", bind_address);
 
     HttpServer::new(|| {
