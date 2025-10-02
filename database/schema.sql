@@ -1,136 +1,81 @@
 -- SONICA Audio Recognition Database Schema
 -- PostgreSQL database schema for the SONICA audio recognition system
+-- Optimized for audio fingerprinting and song recognition
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Users table
-CREATE TABLE users (
+-- Songs table: Stores metadata for all songs in the system
+-- This is the main catalog of songs that can be recognized
+CREATE TABLE songs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    avatar_url TEXT,
-    is_active BOOLEAN DEFAULT true,
-    is_verified BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- User sessions table
-CREATE TABLE user_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash VARCHAR(255) NOT NULL,
-    expires_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Audio files table
-CREATE TABLE audio_files (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    filename VARCHAR(255) NOT NULL,
-    original_filename VARCHAR(255) NOT NULL,
-    file_path TEXT NOT NULL,
-    file_size BIGINT NOT NULL,
-    duration_seconds DECIMAL(10,3),
-    sample_rate INTEGER,
-    channels INTEGER,
-    bit_depth INTEGER,
-    format VARCHAR(50) NOT NULL, -- wav, mp3, flac, etc.
-    mime_type VARCHAR(100) NOT NULL,
-    uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Audio recognition jobs table
-CREATE TABLE recognition_jobs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    audio_file_id UUID NOT NULL REFERENCES audio_files(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending', -- pending, processing, completed, failed
+    title VARCHAR(255) NOT NULL,
+    artist VARCHAR(255) NOT NULL,
+    album VARCHAR(255),
     language VARCHAR(10) DEFAULT 'en-US',
-    model_name VARCHAR(100),
-    confidence_threshold DECIMAL(3,2) DEFAULT 0.5,
-    processing_started_at TIMESTAMP WITH TIME ZONE,
-    processing_completed_at TIMESTAMP WITH TIME ZONE,
-    error_message TEXT,
+    duration DECIMAL(10,3) NOT NULL, -- Duration in seconds
+    r2_audio_url TEXT, -- Cloudflare R2 URL for audio file
+    r2_thumbnail_url TEXT, -- Cloudflare R2 URL for album art/thumbnail
+    audio_key VARCHAR(500), -- R2 object key for audio file
+    thumbnail_key VARCHAR(500), -- R2 object key for thumbnail
+    recognition_count INTEGER DEFAULT 0, -- Number of times this song has been recognized
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Recognition results table
-CREATE TABLE recognition_results (
+-- Fingerprints table: Stores audio fingerprints for fast song matching
+-- Each song has multiple fingerprints at different time offsets
+-- The hash column contains the audio fingerprint hash for matching
+CREATE TABLE fingerprints (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    job_id UUID NOT NULL REFERENCES recognition_jobs(id) ON DELETE CASCADE,
-    text TEXT NOT NULL,
-    confidence DECIMAL(3,2) NOT NULL,
-    start_time DECIMAL(10,3) NOT NULL,
-    end_time DECIMAL(10,3) NOT NULL,
-    speaker_id VARCHAR(100),
-    language VARCHAR(10),
+    song_id UUID NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+    hash VARCHAR(32) NOT NULL, -- Audio fingerprint hash (MD5 or similar)
+    time_offset DECIMAL(10,3) NOT NULL, -- Time offset in seconds where this fingerprint was taken
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Audio features table (for ML model training/analysis)
-CREATE TABLE audio_features (
+-- Recognitions table: Logs all successful song recognitions
+-- Tracks when songs are identified, confidence levels, and user information
+CREATE TABLE recognitions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    audio_file_id UUID NOT NULL REFERENCES audio_files(id) ON DELETE CASCADE,
-    feature_type VARCHAR(50) NOT NULL, -- mfcc, spectral_centroid, zero_crossing_rate, etc.
-    feature_vector JSONB NOT NULL,
-    extraction_method VARCHAR(100),
+    song_id UUID NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+    recognized_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    confidence DECIMAL(3,2) NOT NULL, -- Recognition confidence (0.0 to 1.0)
+    user_ip INET, -- IP address of the user who requested recognition
+    processing_time_ms INTEGER, -- Time taken to process the recognition in milliseconds
+    audio_duration DECIMAL(10,3), -- Duration of the audio sample that was recognized
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Model configurations table
-CREATE TABLE model_configs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(100) UNIQUE NOT NULL,
-    model_type VARCHAR(50) NOT NULL, -- speech_to_text, speaker_identification, emotion_detection
-    model_path TEXT NOT NULL,
-    version VARCHAR(20) NOT NULL,
-    language VARCHAR(10),
-    is_active BOOLEAN DEFAULT true,
-    accuracy_score DECIMAL(3,2),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+-- Create indexes for optimal performance
+-- Hash index for fast fingerprint lookups (most critical for recognition speed)
+CREATE INDEX idx_fingerprints_hash ON fingerprints USING hash (hash);
 
--- Audio processing logs table
-CREATE TABLE processing_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    job_id UUID REFERENCES recognition_jobs(id) ON DELETE CASCADE,
-    audio_file_id UUID REFERENCES audio_files(id) ON DELETE CASCADE,
-    log_level VARCHAR(20) NOT NULL, -- info, warning, error, debug
-    message TEXT NOT NULL,
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+-- B-tree indexes for efficient queries
+CREATE INDEX idx_songs_artist ON songs(artist);
+CREATE INDEX idx_songs_title ON songs(title);
+CREATE INDEX idx_songs_album ON songs(album);
+CREATE INDEX idx_songs_language ON songs(language);
+CREATE INDEX idx_songs_recognition_count ON songs(recognition_count);
+CREATE INDEX idx_songs_created_at ON songs(created_at);
 
--- Create indexes for better performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_token_hash ON user_sessions(token_hash);
-CREATE INDEX idx_audio_files_uploaded_by ON audio_files(uploaded_by);
-CREATE INDEX idx_audio_files_format ON audio_files(format);
-CREATE INDEX idx_recognition_jobs_audio_file_id ON recognition_jobs(audio_file_id);
-CREATE INDEX idx_recognition_jobs_user_id ON recognition_jobs(user_id);
-CREATE INDEX idx_recognition_jobs_status ON recognition_jobs(status);
-CREATE INDEX idx_recognition_jobs_created_at ON recognition_jobs(created_at);
-CREATE INDEX idx_recognition_results_job_id ON recognition_results(job_id);
-CREATE INDEX idx_recognition_results_confidence ON recognition_results(confidence);
-CREATE INDEX idx_audio_features_audio_file_id ON audio_features(audio_file_id);
-CREATE INDEX idx_audio_features_feature_type ON audio_features(feature_type);
-CREATE INDEX idx_model_configs_model_type ON model_configs(model_type);
-CREATE INDEX idx_model_configs_is_active ON model_configs(is_active);
-CREATE INDEX idx_processing_logs_job_id ON processing_logs(job_id);
-CREATE INDEX idx_processing_logs_audio_file_id ON processing_logs(audio_file_id);
-CREATE INDEX idx_processing_logs_log_level ON processing_logs(log_level);
-CREATE INDEX idx_processing_logs_created_at ON processing_logs(created_at);
+-- Fingerprints table indexes
+CREATE INDEX idx_fingerprints_song_id ON fingerprints(song_id);
+CREATE INDEX idx_fingerprints_time_offset ON fingerprints(time_offset);
+CREATE INDEX idx_fingerprints_created_at ON fingerprints(created_at);
+
+-- Recognitions table indexes
+CREATE INDEX idx_recognitions_song_id ON recognitions(song_id);
+CREATE INDEX idx_recognitions_recognized_at ON recognitions(recognized_at);
+CREATE INDEX idx_recognitions_confidence ON recognitions(confidence);
+CREATE INDEX idx_recognitions_user_ip ON recognitions(user_ip);
+CREATE INDEX idx_recognitions_processing_time ON recognitions(processing_time_ms);
+CREATE INDEX idx_recognitions_created_at ON recognitions(created_at);
+
+-- Composite indexes for common query patterns
+CREATE INDEX idx_fingerprints_hash_song_id ON fingerprints(hash, song_id);
+CREATE INDEX idx_recognitions_song_recognized_at ON recognitions(song_id, recognized_at);
+CREATE INDEX idx_songs_artist_title ON songs(artist, title);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -141,12 +86,64 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at columns
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+-- Create trigger for songs table updated_at column
+CREATE TRIGGER update_songs_updated_at BEFORE UPDATE ON songs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_recognition_jobs_updated_at BEFORE UPDATE ON recognition_jobs
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Create function to increment recognition count
+CREATE OR REPLACE FUNCTION increment_recognition_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE songs 
+    SET recognition_count = recognition_count + 1,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = NEW.song_id;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
-CREATE TRIGGER update_model_configs_updated_at BEFORE UPDATE ON model_configs
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Create trigger to automatically increment recognition count
+CREATE TRIGGER increment_song_recognition_count 
+    AFTER INSERT ON recognitions
+    FOR EACH ROW EXECUTE FUNCTION increment_recognition_count();
+
+-- Create function to get song statistics
+CREATE OR REPLACE FUNCTION get_song_stats(song_uuid UUID)
+RETURNS TABLE (
+    total_recognitions BIGINT,
+    avg_confidence DECIMAL,
+    avg_processing_time DECIMAL,
+    first_recognized TIMESTAMP WITH TIME ZONE,
+    last_recognized TIMESTAMP WITH TIME ZONE
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_recognitions,
+        AVG(r.confidence) as avg_confidence,
+        AVG(r.processing_time_ms) as avg_processing_time,
+        MIN(r.recognized_at) as first_recognized,
+        MAX(r.recognized_at) as last_recognized
+    FROM recognitions r
+    WHERE r.song_id = song_uuid;
+END;
+$$ language 'plpgsql';
+
+-- Create view for song recognition summary
+CREATE VIEW song_recognition_summary AS
+SELECT 
+    s.id,
+    s.title,
+    s.artist,
+    s.album,
+    s.recognition_count,
+    COUNT(r.id) as actual_recognitions,
+    AVG(r.confidence) as avg_confidence,
+    AVG(r.processing_time_ms) as avg_processing_time,
+    MIN(r.recognized_at) as first_recognized,
+    MAX(r.recognized_at) as last_recognized,
+    s.created_at,
+    s.updated_at
+FROM songs s
+LEFT JOIN recognitions r ON s.id = r.song_id
+GROUP BY s.id, s.title, s.artist, s.album, s.recognition_count, s.created_at, s.updated_at;
