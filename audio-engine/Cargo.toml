@@ -1,0 +1,83 @@
+[package]
+name = "sonica-audio-engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sonica Team"]
+description = "Ultra-fast audio fingerprinting engine for music recognition"
+
+[dependencies]
+# Audio processing
+hound = "3.5"                    # WAV file reading
+cpal = "0.15"                    # Cross-platform audio
+rubato = "0.14"                  # Audio resampling
+ndarray = "0.15"                 # N-dimensional arrays
+ndarray-stats = "0.5"            # Statistical functions
+
+# SIMD optimizations
+simd = "0.2"                     # SIMD operations
+portable-simd = "0.3"           # Portable SIMD
+rayon = "1.8"                    # Parallel processing
+
+# Math and signal processing
+fftw3 = "0.4"                    # FFT implementation
+rustfft = "6.1"                  # Pure Rust FFT
+num-complex = "0.4"              # Complex numbers
+num-traits = "0.2"               # Numeric traits
+
+# Database and storage
+tokio = { version = "1.0", features = ["full"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+redis = { version = "0.24", features = ["tokio-comp"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Vector database
+reqwest = { version = "0.11", features = ["json"] }
+serde_json = "1.0"
+
+# Async runtime
+async-trait = "0.1"
+futures = "0.3"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Configuration
+config = "0.13"
+dotenv = "0.15"
+
+# Utilities
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.21"
+hex = "0.4"
+
+# Performance monitoring
+criterion = "0.5"
+
+# WebAssembly support
+wasm-bindgen = "0.2"
+web-sys = "0.3"
+js-sys = "0.3"
+serde-wasm-bindgen = "0.6"
+console_error_panic_hook = "0.1"
+
+[dev-dependencies]
+tempfile = "3.0"
+tokio-test = "0.4"
+wasm-bindgen-test = "0.3"
+
+[[bench]]
+name = "audio_processing"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

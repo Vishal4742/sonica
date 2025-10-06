@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Luxury dark palette with gold accents */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Luxury gold */
+    --primary: 43 74% 66%;
+    --primary-foreground: 0 0% 10%;
+    
+    --secondary: 40 60% 50%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 43 74% 66%;
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    --ring: 43 74% 66%;
+
+    --radius: 0.25rem;
+
+    /* Luxury-specific colors */
+    --gold: 43 74% 66%;
+    --gold-dark: 40 60% 50%;
+    --gold-light: 45 80% 75%;
+    --bronze: 30 50% 45%;
+    
+    /* Glass morphism */
+    --glass-bg: 0 0% 100% / 0.03;
+    --glass-border: 0 0% 100% / 0.08;
+    
+    /* Glow effects */
+    --glow-gold: 43 74% 66% / 0.4;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  
+  /* Luxury text effects */
+  .text-glow-gold {
+    text-shadow: 0 0 30px hsl(var(--glow-gold)), 0 0 60px hsl(var(--glow-gold));
+  }
+}
+
+
+/* Luxury gradient backgrounds */
+@layer utilities {
+  .luxury-gradient {
+    background: linear-gradient(135deg, hsl(var(--gold-dark)), hsl(var(--gold)));
+  }
+  
+  .luxury-gradient-vertical {
+    background: linear-gradient(180deg, hsl(var(--gold)) 0%, hsl(var(--bronze)) 100%);
+  }
+  
+  /* Glass morphism effect - luxury version */
+  .glass-card {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--glass-border));
+  }
+  
+  /* Glow effects */
+  .glow-gold {
+    box-shadow: 
+      0 0 20px hsl(var(--glow-gold)),
+      0 0 40px hsl(var(--glow-gold)),
+      0 0 60px hsl(var(--glow-gold) / 0.2);
+  }
+  
+  /* Geometric accent lines */
+  .diagonal-line {
+    position: relative;
+  }
+  
+  .diagonal-line::before {
+    content: '';
+    position: absolute;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(180deg, transparent, hsl(var(--border)), transparent);
+    transform: rotate(-15deg);
+  }
+}
+

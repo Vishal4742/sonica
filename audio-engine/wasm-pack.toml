@@ -1,0 +1,27 @@
+[package]
+name = "sonica-audio-engine-wasm"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sonica Team"]
+description = "WebAssembly bindings for Sonica audio engine"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Re-export all the core dependencies
+sonica-audio-engine = { path = "." }
+
+# WebAssembly specific dependencies
+wasm-bindgen = "0.2"
+web-sys = "0.3"
+js-sys = "0.3"
+serde-wasm-bindgen = "0.6"
+console_error_panic_hook = "0.1"
+
+# Optimize for size
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
